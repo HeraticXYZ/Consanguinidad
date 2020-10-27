@@ -1,2 +1,2 @@
 # Consanguinidad
-Consanguinity analysis using MAP estimation.
+Consanguinity analysis.
