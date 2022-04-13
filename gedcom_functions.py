@@ -1,7 +1,7 @@
 """
 Consanguinidad 6.0 functions
 
-PIDs are of the form P3, P644, F1203, etc. and are the primary indices used for function calls
+PIDs and family IDs are of the form P3, P644, F1203, etc. and are the primary indices used for function calls.
 """
 
 class GEDCOM:
@@ -43,15 +43,6 @@ class GEDCOM:
             husband = line.split('@')[1]
     return [wife, husband]
 
-  def get_parents(self, family):
-    # DEFUNCT
-    # starting with a FAMS
-    # wife's parents FAMS, husband's parents FAMS
-    spouses = self.get_spouses(family)
-    mother = self.get_keys(spouses[0])[1] if spouses[0] != None else None
-    father = self.get_keys(spouses[1])[1] if spouses[1] != None else None
-    return [mother, father]
-
   def get_name(self, PID):
     name = ''
     for chunk in self.gedcom.split('\n0'):
@@ -77,7 +68,7 @@ class GEDCOM:
     return text
 
   def get_relevant_families(self, family):
-    # crawls down from a FAMID to all FAMIDs within range, set to 3
+    # crawls down from a family to all descendant marriages within range, set to 3
     relevant_families = [] # refers to FAMSIDs
     cur_gen = [family] # refers to FAMSIDs
     i = 1
@@ -176,7 +167,6 @@ class GEDCOM:
 
 class CandidatesLibrary:
   def __init__(self):
-    # self.library = {} # {FAMID: (grade_field, grades), ...}
     # each family results in a batch, which is reduced by the negation batch
     self.batches = {} # {FAMID: [batches]}
     self.elim_batches = {} # list of negated candidates from each family
@@ -247,18 +237,7 @@ class CandidatesLibrary:
     self.__reduce()
 
   def get_reduced_batches(self):
-    # returns reduced batches in ascending order of size
-    """
-    relevant_batches = []
-    for family, reduced_batches in self.reduced_batches.items():
-      for batch in reduced_batches:
-        family_found = False
-        for candidate in batch[0]:
-          if candidate[0][0] == family or candidate[1][0] == family:
-            family_found = True
-        if family_found:
-          relevant_batches.append(batch)
-    """
+    # returns raw reduced batches in ascending order of size
     return sorted(list(self.reduced_batches.values()), key=lambda b:len(b[0]))
 
   def print_reduced_batches(self, gedcom):
@@ -294,8 +273,6 @@ class CandidatesLibrary:
       family = args[1]
       self.remove_dispensa(family)
     if command == 'view':
-      # family = args[1]
-      # print(library.get_reduced_batches())
       self.print_reduced_batches(gedcom)
     if command == 'exit':
       return 0
