@@ -63,54 +63,112 @@ right_frame = ttk.Frame(root)
 
 """Libraries LabelFrame"""
 
+def get_reduced_batches(library):
+  batches = {}
+  for family, family_batches in library.reduced_batches.items():
+    family_batch_index = ord('a')
+    for batch in family_batches:
+      batch_name = family + chr(family_batch_index)
+      batches[batch_name] = batch
+      family_batch_index += 1
+  return batches
+
 class LibrariesFrame(ttk.LabelFrame):
   
   def __init__(self, parent, text):
     super().__init__(parent, text=text)
-    self.lib_list = []
-    self.libraries_field = StringVar(value=self.lib_list)
+    self.cur_library = None
+    self.libraries_list = []
+    self.libraries_field = StringVar(value=self.libraries_list)
     self.libraries = {} # maps name of library to library object
 
-    self.libraries_listbox = Listbox(self, listvariable=self.libraries_field, height=5)
-    self.libraries_listbox.pack(fill='x')
+    self.listbox = Listbox(self, listvariable=self.libraries_field, height=5)
+    self.listbox.pack(fill='x')
 
-    self.libraries_create_button = ttk.Button(self, text='Create Library', command=self.name_library)
-    self.libraries_create_button.pack(expand=True, side='left')
+    self.buttons_frame1 = ttk.Frame(self)
+    self.buttons_frame1.pack(fill='x')
 
-    self.libraries_delete_button = ttk.Button(self, text='Delete Library', command=self.delete_library)
-    self.libraries_delete_button.pack(expand=True, side='right')
-
-  def create_library(self, new_name):
-    if new_name != '':
-      self.libraries[new_name] = CandidatesLibrary()
-      self.lib_list.append(new_name)
-      self.libraries_field.set(self.lib_list)
-
-  def name_library(self):
-    create_window = Toplevel()
-    create_window.title('Create Library')
+    self.buttons_frame2 = ttk.Frame(self)
+    self.buttons_frame2.pack(fill='x')
     
+    self.create_button = ttk.Button(self.buttons_frame1, text='Create', command=lambda:self.name_library(self.create_library))
+    self.create_button.pack(expand=True, side='left')
+
+    self.delete_button = ttk.Button(self.buttons_frame1, text='Delete', command=self.delete_library)
+    self.delete_button.pack(expand=True, side='right')
+
+    self.rename_button = ttk.Button(self.buttons_frame2, text='Rename', command=lambda:self.name_library(self.rename_library))
+    self.rename_button.pack(expand=True, side='left')
+
+    self.open_button = ttk.Button(self.buttons_frame2, text='Open', command=self.open_library)
+    self.open_button.pack(expand=True, side='right')
   
-    new_name_frame = ttk.LabelFrame(create_window, text='Name')
-    new_name_frame.pack()
-    new_name_entry = ttk.Entry(new_name_frame)
-    new_name_entry.pack()
+  def name_library(self, action):
+    if action == self.rename_library:
+      if len(self.listbox.curselection()) == 0:
+        print('No library selected!')
+        return
+    self.name_window = Toplevel()
+    self.name_window.title('Create Library')
+  
+    self.new_name_frame = ttk.LabelFrame(self.name_window, text='Name')
+    self.new_name_frame.pack()
+    self.new_name_entry = ttk.Entry(self.new_name_frame)
+    self.new_name_entry.pack()
 
-    accept_button = ttk.Button(create_window, text='Accept', command=lambda:[self.create_library(new_name_entry.get()), create_window.destroy()])
-    accept_button.pack(side='left')
+    self.accept_button = ttk.Button(self.name_window, text='Accept', command=action)
+    self.accept_button.pack(side='left')
 
-    cancel_button = ttk.Button(create_window, text='Cancel', command=create_window.destroy)
-    cancel_button.pack(side='right')
+    self.cancel_button = ttk.Button(self.name_window, text='Cancel', command=self.name_window.destroy)
+    self.cancel_button.pack(side='right')
 
-    create_window.wait_visibility()
-    create_window.grab_set_global()
+    self.name_window.wait_visibility()
+    self.name_window.grab_set_global()
+
+  def create_library(self):
+    new_name = self.new_name_entry.get()
+    if new_name == '':
+      print('Type a name!')
+      return
+    self.libraries[new_name] = CandidatesLibrary()
+    self.libraries_list.append(new_name)
+    self.libraries_field.set(self.libraries_list)
+    self.name_window.destroy()
+
+  def rename_library(self):
+    new_name = self.new_name_entry.get()
+    if new_name == '':
+      print('Type a name!')
+      return
+    cur_library_index = self.listbox.curselection()[0]
+    library_name = self.libraries_list[cur_library_index]
+    self.libraries[new_name] = self.libraries[library_name]
+    self.libraries.pop(library_name)
+    self.libraries_list.pop(cur_library_index)
+    self.libraries_list.insert(cur_library_index, new_name)
+    self.libraries_field.set(self.libraries_list)
+    self.name_window.destroy()
 
   def delete_library(self):
-    if self.lib_list != []:
-      cur_library_index = self.libraries_listbox.curselection()[0]
-      del self.libraries[self.lib_list[cur_library_index]]
-      self.lib_list.pop(cur_library_index)
-      self.libraries_field.set(self.lib_list)
+    if len(self.listbox.curselection()) == 0:
+      print('No library selected!')
+      return
+    cur_library_index = self.listbox.curselection()[0]
+    del self.libraries[self.libraries_list[cur_library_index]]
+    self.libraries_list.pop(cur_library_index)
+    self.libraries_field.set(self.libraries_list)
+
+  def open_library(self):
+    if len(self.listbox.curselection()) == 0:
+      print('No library selected!')
+      return
+    cur_library_index = self.listbox.curselection()[0]
+    cur_library_name = self.libraries_list[cur_library_index]
+    cur_library = self.libraries[cur_library_name]
+    self.cur_library = cur_library
+    batches = get_reduced_batches(cur_library)
+    batches_frame.library_name.set(cur_library_name)
+    batches_frame.set_batches(batches)
 
 libraries_frame = LibrariesFrame(left_frame, text='Libraries')
 libraries_frame.pack(fill='x')
@@ -121,142 +179,184 @@ class SearchFrame(ttk.LabelFrame):
 
   def __init__(self, parent, text):
     super().__init__(parent, text=text)
-    self.search_field = StringVar()
+    self.entry_field = StringVar()
     self.families = [] # [ (FID, names), (FID, names), ... ]
-    self.search_results_field = StringVar(value=self.families)
+    self.results_field = StringVar(value=self.families)
 
-    self.search_entry = ttk.Entry(self, textvariable=self.search_field)
-    self.search_entry.bind('<Return>', self.family_search)
-    self.search_entry.pack(fill='x')
+    self.entry = ttk.Entry(self, textvariable=self.entry_field)
+    self.entry.bind('<Return>', self.family_search)
+    self.entry.pack(fill='x')
 
-    self.search_listbox = Listbox(self, listvariable=self.search_results_field, height=10)
-    self.search_listbox.pack(fill='x')
+    self.listbox = Listbox(self, listvariable=self.results_field, height=8)
+    self.listbox.pack(fill='x')
 
-    self.search_add_button = ttk.Button(self, text='Add Family', command=self.select_grades)
-    self.search_add_button.pack(expand=True, side='left')
+    self.add_button = ttk.Button(self, text='Add Family', command=self.select_grades)
+    self.add_button.pack(expand=True, side='left')
 
-    self.search_remove_button = ttk.Button(self, text='Remove Family', command=self.remove_family)
-    self.search_remove_button.pack(expand=True, side='right')
+    self.remove_button = ttk.Button(self, text='Remove Family', command=self.remove_family)
+    self.remove_button.pack(expand=True, side='right')
 
   def family_search(self, event):
-    text = self.search_field.get()
+    self.families = []
+    text = self.entry_field.get()
     for family, values in gedcom.FID_dict.items():
-      if text in values['names']:
+      if (text in family) or (text in values['names']):
         self.families.append((family, values['names']))
-    self.search_results_field.set(self.families)
+    self.results_field.set(self.families)
 
-  def add_family(self, grade_quantities):
-    search_selection = self.search_listbox.curselection()
-    library_selection = libraries_frame.libraries_listbox.curselection()
-    if len(search_selection) == 0:
+  def select_grades(self):
+    if len(self.listbox.curselection()) == 0:
       print('No family selected!')
       return
-    if len(library_selection) == 0:
-      print('No library selected!')
+    if libraries_frame.cur_library is None:
+      print('No library open!')
       return
+    self.add_window = Toplevel()
+    self.add_window.title('Select grades')
+    
+    self.grade_entry_frame = ttk.Frame(self.add_window)
+    self.grade_entry_frame.pack(expand=True)
+    self.buttons_frame = ttk.Frame(self.add_window)
+    self.buttons_frame.pack()
+    
+    self.grades_label = ttk.Label(self.grade_entry_frame, text='Grades')
+    self.grades_label.grid(column=0, row=0, ipadx=7)
+    self.grade_label_2 = ttk.Label(self.grade_entry_frame, text='2°')
+    self.grade_label_2.grid(column=0, row=1, ipadx=5)
+    self.grade_label_2c3 = ttk.Label(self.grade_entry_frame, text='2° con 3°')
+    self.grade_label_2c3.grid(column=0, row=2, ipadx=5)
+    self.grade_label_3 = ttk.Label(self.grade_entry_frame, text='3°')
+    self.grade_label_3.grid(column=0, row=3, ipadx=5)
+    self.grade_label_3c4 = ttk.Label(self.grade_entry_frame, text='3° con 4°')
+    self.grade_label_3c4.grid(column=0, row=4, ipadx=5)
+    self.grade_label_4 = ttk.Label(self.grade_entry_frame, text='4°')
+    self.grade_label_4.grid(column=0, row=5, ipadx=5)
+
+    self.quantity_label = ttk.Label(self.grade_entry_frame, text='Quantity')
+    self.quantity_label.grid(column=1, row=0, sticky=EW)
+    self.grade_quantity_2 = StringVar()
+    self.grade_entry_2 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_2, width=5)
+    self.grade_entry_2.grid(column=1, row=1, sticky=EW)
+    self.grade_quantity_2c3 = StringVar()
+    self.grade_entry_2c3 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_2c3, width=5)
+    self.grade_entry_2c3.grid(column=1, row=2, sticky=EW)
+    self.grade_quantity_3 = StringVar()
+    self.grade_entry_3 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_3, width=5)
+    self.grade_entry_3.grid(column=1, row=3, sticky=EW)
+    self.grade_quantity_3c4 = StringVar()
+    self.grade_entry_3c4 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_3c4, width=5)
+    self.grade_entry_3c4.grid(column=1, row=4, sticky=EW)
+    self.grade_quantity_4 = StringVar()
+    self.grade_entry_4 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_4, width=5)
+    self.grade_entry_4.grid(column=1, row=5, sticky=EW)
+    
+    self.accept_button = ttk.Button(self.buttons_frame, text='Accept', command=self.add_family)
+    self.accept_button.pack(side='left')
+
+    self.cancel_button = ttk.Button(self.buttons_frame, text='Cancel', command=self.add_window.destroy)
+    self.cancel_button.pack(side='right')
+    
+    self.add_window.wait_visibility()
+    self.add_window.grab_set_global()
+
+  def add_family(self):
     grades = []
     try:
-      for i in range(int(grade_quantities[0])):
+      for i in range(int(self.grade_quantity_2.get())):
         grades.append((2,2))
-      for i in range(int(grade_quantities[1])):
+      for i in range(int(self.grade_quantity_2c3.get())):
         grades.append((2,3))
-      for i in range(int(grade_quantities[2])):
+      for i in range(int(self.grade_quantity_3.get())):
         grades.append((3,3))
-      for i in range(int(grade_quantities[3])):
+      for i in range(int(self.grade_quantity_3c4.get())):
         grades.append((3,4))
-      for i in range(int(grade_quantities[4])):
+      for i in range(int(self.grade_quantity_4.get())):
         grades.append((4,4))
     except:
       print('Grade quantities must be positive integers!')
       return
-    family = self.families[search_selection[0]][0]
+    family = self.families[self.listbox.curselection()[0]][0]
     grade_field = gedcom.get_grade_field(family)
     known_grades = gedcom.get_known_grades(grade_field)
-    cur_library_name = libraries_frame.lib_list[library_selection[0]]
-    cur_library = libraries_frame.libraries[cur_library_name]
-    cur_library.add_dispensa(family, grade_field, known_grades, grades)
-
-  def select_grades(self):
-    add_window = Toplevel()
-    add_window.title('Select grades')
-    
-    entry_frame = ttk.Frame(add_window)
-    entry_frame.pack(expand=True)
-    buttons_frame = ttk.Frame(add_window)
-    buttons_frame.pack()
-    
-    grades_label = ttk.Label(entry_frame, text='Grades')
-    grades_label.grid(column=0, row=0, ipadx=7)
-    grade_label_2 = ttk.Label(entry_frame, text='2°')
-    grade_label_2.grid(column=0, row=1, ipadx=5)
-    grade_label_2c3 = ttk.Label(entry_frame, text='2° con 3°')
-    grade_label_2c3.grid(column=0, row=2, ipadx=5)
-    grade_label_3 = ttk.Label(entry_frame, text='3°')
-    grade_label_3.grid(column=0, row=3, ipadx=5)
-    grade_label_3c4 = ttk.Label(entry_frame, text='3° con 4°')
-    grade_label_3c4.grid(column=0, row=4, ipadx=5)
-    grade_label_4 = ttk.Label(entry_frame, text='4°')
-    grade_label_4.grid(column=0, row=5, ipadx=5)
-
-    quantity_label = ttk.Label(entry_frame, text='Quantity')
-    quantity_label.grid(column=1, row=0, sticky=EW)
-    grade_quantity_2 = StringVar()
-    grade_entry_2 = ttk.Entry(entry_frame, textvariable=grade_quantity_2, width=5)
-    grade_entry_2.grid(column=1, row=1, sticky=EW)
-    grade_quantity_2c3 = StringVar()
-    grade_entry_2c3 = ttk.Entry(entry_frame, textvariable=grade_quantity_2c3, width=5)
-    grade_entry_2c3.grid(column=1, row=2, sticky=EW)
-    grade_quantity_3 = StringVar()
-    grade_entry_3 = ttk.Entry(entry_frame, textvariable=grade_quantity_3, width=5)
-    grade_entry_3.grid(column=1, row=3, sticky=EW)
-    grade_quantity_3c4 = StringVar()
-    grade_entry_3c4 = ttk.Entry(entry_frame, textvariable=grade_quantity_3c4, width=5)
-    grade_entry_3c4.grid(column=1, row=4, sticky=EW)
-    grade_quantity_4 = StringVar()
-    grade_entry_4 = ttk.Entry(entry_frame, textvariable=grade_quantity_4, width=5)
-    grade_entry_4.grid(column=1, row=5, sticky=EW)
-
-    def get_grade_quantities():
-      return [grade_quantity_2.get(), 
-              grade_quantity_2c3.get(), 
-              grade_quantity_3.get(), 
-              grade_quantity_3c4.get(), 
-              grade_quantity_4.get(), ]
-    
-    accept_button = ttk.Button(buttons_frame, text='Accept', command=lambda:[self.add_family(get_grade_quantities()), add_window.destroy()])
-    accept_button.pack(side='left')
-
-    cancel_button = ttk.Button(buttons_frame, text='Cancel', command=add_window.destroy)
-    cancel_button.pack(side='right')
-    
-    add_window.wait_visibility()
-    add_window.grab_set_global()
+    libraries_frame.cur_library.add_dispensa(family, grade_field, known_grades, grades)
+    batches_frame.set_batches(get_reduced_batches(libraries_frame.cur_library))
+    self.add_window.destroy()
 
   def remove_family(self):
-    pass
+    search_selection = self.listbox.curselection()
+    if len(search_selection) == 0:
+      print('No family selected!')
+      return
+    if libraries_frame.cur_library is None:
+      print('No library open!')
+      return
+    family = self.families[search_selection[0]][0]
+    libraries_frame.cur_library.remove_dispensa(family)
+    batches_frame.set_batches(get_reduced_batches(libraries_frame.cur_library))
 
 search_frame = SearchFrame(left_frame, text='Search for family to add to library')
 search_frame.pack(fill='x', pady=5)
 
 """Batches LabelFrame"""
 
-batches = StringVar(value=[])
+class BatchesFrame(ttk.LabelFrame):
 
-batches_frame = ttk.LabelFrame(right_frame, text='Batches')
+  def __init__(self, parent, text):
+    super().__init__(parent, text=text)
+    self.batches = {}
+    self.batch_names = []
+    self.batch_names_field = StringVar(value=self.batch_names)
+    
+    self.library_name = StringVar(value='No library open.')
+    self.library_label = ttk.Label(self, textvariable=self.library_name)
+    self.library_label.pack()
+
+    self.listbox = Listbox(self, listvariable=self.batch_names_field, height=18)
+    self.listbox.pack()
+
+    self.view_button = ttk.Button(self, text='View', command=self.view_batch)
+    self.view_button.pack()
+
+  def set_batches(self, batches):
+    self.batches = batches
+    self.batch_names = list(batches.keys())
+    self.batch_names_field.set(self.batch_names)
+  
+  def view_batch(self):
+    batch_selection = self.listbox.curselection()
+    if len(batch_selection) == 0:
+      print('No batch selected!')
+      return
+    batch_name = self.batch_names[batch_selection[0]]
+    batch = self.batches[batch_name]
+    candidates_frame.set_batch(batch)
+
+batches_frame = BatchesFrame(right_frame, text='Batches')
 batches_frame.pack(side='left')
-
-batches_listbox = Listbox(batches_frame, listvariable=batches, height=20)
-batches_listbox.pack()
 
 """Candidates LabelFrame"""
 
-candidates = StringVar(value=[])
+class CandidatesFrame(ttk.LabelFrame):
 
-candidates_frame = ttk.LabelFrame(right_frame, text='Candidates')
+  def __init__(self, parent, text):
+    super().__init__(parent, text=text)
+    self.candidates = []
+    self.candidates_field = StringVar(value=self.candidates)
+
+    self.tokens_field = StringVar(value='Tokens: ')
+    self.tokens_label = ttk.Label(self, textvariable=self.tokens_field)
+    self.tokens_label.pack()
+
+    self.listbox = Listbox(self, listvariable=self.candidates_field, height=20)
+    self.listbox.pack()
+
+  def set_batch(self, batch):
+    self.candidates = batch[0]
+    self.candidates_field.set(self.candidates)
+    self.tokens_field.set('Tokens: '+str(batch[1]))
+
+candidates_frame = CandidatesFrame(right_frame, text='Candidates')
 candidates_frame.pack(side='right')
-
-candidates_listbox = Listbox(candidates_frame, listvariable=candidates, height=20)
-candidates_listbox.pack()
 
 """Main Loop"""
 
