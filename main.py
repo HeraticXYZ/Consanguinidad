@@ -79,7 +79,7 @@ class LibrariesFrame(ttk.LabelFrame):
     super().__init__(parent, text=text)
     self.cur_library = None
     self.libraries_list = []
-    self.libraries_field = StringVar(value=self.libraries_list)
+    self.libraries_field = StringVar(value=[])
     self.libraries = {} # maps name of library to library object
 
     self.listbox = Listbox(self, listvariable=self.libraries_field, height=5)
@@ -181,7 +181,7 @@ class SearchFrame(ttk.LabelFrame):
     super().__init__(parent, text=text)
     self.entry_field = StringVar()
     self.families = [] # [ (FID, names), (FID, names), ... ]
-    self.results_field = StringVar(value=self.families)
+    self.results_field = StringVar(value=[])
 
     self.entry = ttk.Entry(self, textvariable=self.entry_field)
     self.entry.bind('<Return>', self.family_search)
@@ -305,7 +305,7 @@ class BatchesFrame(ttk.LabelFrame):
     super().__init__(parent, text=text)
     self.batches = {}
     self.batch_names = []
-    self.batch_names_field = StringVar(value=self.batch_names)
+    self.batch_names_field = StringVar(value=[])
     
     self.library_name = StringVar(value='No library open.')
     self.library_label = ttk.Label(self, textvariable=self.library_name)
@@ -321,6 +321,11 @@ class BatchesFrame(ttk.LabelFrame):
     self.batches = batches
     self.batch_names = list(batches.keys())
     self.batch_names_field.set(self.batch_names)
+    batch_selection = self.listbox.curselection()
+    if len(batch_selection) != 0:
+      batch_name = self.batch_names[batch_selection[0]]
+      batch = self.batches[batch_name]
+      candidates_frame.set_batch(batch)
   
   def view_batch(self):
     batch_selection = self.listbox.curselection()
@@ -336,24 +341,57 @@ batches_frame.pack(side='left')
 
 """Candidates LabelFrame"""
 
+def name_candidate(candidate):
+  info = gedcom.PID_dict[candidate[0][0]]
+  male_side_name = info['GIVN'] + ' ' + info['SURN']
+  info = gedcom.PID_dict[candidate[1][0]]
+  female_side_name = info['GIVN'] + ' ' + info['SURN']
+  return ((male_side_name, candidate[0][1]), (female_side_name, candidate[1][1]))
+
 class CandidatesFrame(ttk.LabelFrame):
 
   def __init__(self, parent, text):
     super().__init__(parent, text=text)
     self.candidates = []
-    self.candidates_field = StringVar(value=self.candidates)
+    self.elim_candidates = {}
+    self.candidates_field = StringVar(value=[])
+    self.elim_candidates_field = StringVar(value=[])
 
     self.tokens_field = StringVar(value='Tokens: ')
     self.tokens_label = ttk.Label(self, textvariable=self.tokens_field)
     self.tokens_label.pack()
 
-    self.listbox = Listbox(self, listvariable=self.candidates_field, height=20)
+    self.listbox = Listbox(self, listvariable=self.candidates_field, height=8)
+    self.listbox.bind('<<ListboxSelect>>', self.display_elim_families)
     self.listbox.pack()
 
+    self.elim_families_label_field = StringVar(value='Elim. families: ')
+    self.elim_families_label = ttk.Label(self, textvariable=self.elim_families_label_field)
+    self.elim_families_label.pack()
+
+    self.elim_listbox = Listbox(self, listvariable=self.elim_candidates_field, height=8)
+    self.elim_listbox.pack()
+
   def set_batch(self, batch):
-    self.candidates = batch[0]
-    self.candidates_field.set(self.candidates)
-    self.tokens_field.set('Tokens: '+str(batch[1]))
+    reduced_candidates, tokens, elim_families = batch
+    named_reduced_candidates = [name_candidate(candidate) for candidate in reduced_candidates]
+    self.candidates = reduced_candidates
+    self.candidates_field.set(named_reduced_candidates)
+    self.tokens_field.set('Tokens: '+str(tokens))
+    for elim_family, elim_candidates in elim_families.items():
+      for elim_candidate in elim_candidates:
+        if elim_candidate in self.elim_candidates:
+          self.elim_candidates[elim_candidate].append(elim_family)
+        else:
+          self.elim_candidates[elim_candidate] = [elim_family]
+    named_elim_candidates = [name_candidate(candidate) for candidate in list(self.elim_candidates.keys())]
+    self.elim_candidates_field.set(named_elim_candidates)
+
+  def display_elim_families(self, event):
+    cur_candidate_index = self.listbox.curselection()[0]
+    cur_candidate = list(self.elim_candidates.keys())[cur_candidate_index]
+    elim_families = self.elim_candidates[cur_candidate]
+    self.elim_families_field.set('Elim. families: ' + str(elim_families))
 
 candidates_frame = CandidatesFrame(right_frame, text='Candidates')
 candidates_frame.pack(side='right')
