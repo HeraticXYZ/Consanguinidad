@@ -1,4 +1,6 @@
 import os
+import re
+import pickle
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
@@ -21,16 +23,18 @@ class FileMenu(Menu):
       command=self.open_gedcom,
     )
     self.add_command(
-      label='Open workspace...'
+      label='Open workspace...',
+      command=self.open_workspace,
     )
     self.add_separator()
     self.add_command(
-      label='Save workspace'
+      label='Save workspace',
+      command=self.save_workspace,
     )
     self.add_separator()
     self.add_command(
       label='Exit',
-      command=root.destroy
+      command=root.destroy,
     )
 
   def open_gedcom(self):
@@ -38,11 +42,32 @@ class FileMenu(Menu):
     if len(file_name) == 0:
       return
     global gedcom
+    global gedcom_name
     gedcom = GEDCOM(file_name)
-    gedcom_label_text.set('GEDCOM: '+os.path.split(file_name)[1])
+    gedcom_name = os.path.split(file_name)[1]
+    gedcom_label_text.set('GEDCOM: ' + gedcom_name)
     print('GEDCOM imported successfully!')
     left_frame.pack(fill='x', expand=True, side='left', padx=5)
     right_frame.pack(fill='x', expand=True, side='right', padx=5)
+
+  def open_workspace(self):
+    global gedcom
+    global gedcom_name
+    with filedialog.askopenfile(mode='rb') as load_file:
+      gedcom = pickle.load(load_file)
+      gedcom_name = pickle.load(load_file)
+      libraries_frame.libraries = pickle.load(load_file)
+    gedcom_label_text.set('GEDCOM: ' + gedcom_name)
+    libraries_frame.libraries_list = list(libraries_frame.libraries.keys())
+    libraries_frame.libraries_field.set(libraries_frame.libraries_list)
+    left_frame.pack(fill='x', expand=True, side='left', padx=5)
+    right_frame.pack(fill='x', expand=True, side='right', padx=5)
+
+  def save_workspace(self):
+    with filedialog.asksaveasfile(mode='wb') as save_file:
+      pickle.dump(gedcom, save_file)
+      pickle.dump(gedcom_name, save_file)
+      pickle.dump(libraries_frame.libraries, save_file)
 
 menubar = Menu(root)
 file_menu = FileMenu(menubar)
@@ -153,10 +178,13 @@ class LibrariesFrame(ttk.LabelFrame):
     if len(self.listbox.curselection()) == 0:
       print('No library selected!')
       return
+    self.cur_library = None
     cur_library_index = self.listbox.curselection()[0]
     del self.libraries[self.libraries_list[cur_library_index]]
     self.libraries_list.pop(cur_library_index)
     self.libraries_field.set(self.libraries_list)
+    batches_frame.clear()
+    candidates_frame.clear()
 
   def open_library(self):
     if len(self.listbox.curselection()) == 0:
@@ -179,6 +207,7 @@ class SearchFrame(ttk.LabelFrame):
 
   def __init__(self, parent, text):
     super().__init__(parent, text=text)
+    self.cur_family = None
     self.entry_field = StringVar()
     self.families = [] # [ (FID, names), (FID, names), ... ]
     self.results_field = StringVar(value=[])
@@ -213,9 +242,16 @@ class SearchFrame(ttk.LabelFrame):
       return
     self.add_window = Toplevel()
     self.add_window.title('Select grades')
+
+    self.cur_family = self.families[self.listbox.curselection()[0]][0]
+    marriage_text = gedcom.FID_dict[self.cur_family]['marriage']
+    self.marriage_text_frame = ttk.LabelFrame(self.add_window, text='Marriage description')
+    self.marriage_text_frame.pack()
+    self.marriage_text_label = ttk.Label(self.marriage_text_frame, text=marriage_text)
+    self.marriage_text_label.pack()
     
     self.grade_entry_frame = ttk.Frame(self.add_window)
-    self.grade_entry_frame.pack(expand=True)
+    self.grade_entry_frame.pack()
     self.buttons_frame = ttk.Frame(self.add_window)
     self.buttons_frame.pack()
     
@@ -234,19 +270,19 @@ class SearchFrame(ttk.LabelFrame):
 
     self.quantity_label = ttk.Label(self.grade_entry_frame, text='Quantity')
     self.quantity_label.grid(column=1, row=0, sticky=EW)
-    self.grade_quantity_2 = StringVar()
+    self.grade_quantity_2 = StringVar(value='0')
     self.grade_entry_2 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_2, width=5)
     self.grade_entry_2.grid(column=1, row=1, sticky=EW)
-    self.grade_quantity_2c3 = StringVar()
+    self.grade_quantity_2c3 = StringVar(value='0')
     self.grade_entry_2c3 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_2c3, width=5)
     self.grade_entry_2c3.grid(column=1, row=2, sticky=EW)
-    self.grade_quantity_3 = StringVar()
+    self.grade_quantity_3 = StringVar(value='0')
     self.grade_entry_3 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_3, width=5)
     self.grade_entry_3.grid(column=1, row=3, sticky=EW)
-    self.grade_quantity_3c4 = StringVar()
+    self.grade_quantity_3c4 = StringVar(value='0')
     self.grade_entry_3c4 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_3c4, width=5)
     self.grade_entry_3c4.grid(column=1, row=4, sticky=EW)
-    self.grade_quantity_4 = StringVar()
+    self.grade_quantity_4 = StringVar(value='0')
     self.grade_entry_4 = ttk.Entry(self.grade_entry_frame, textvariable=self.grade_quantity_4, width=5)
     self.grade_entry_4.grid(column=1, row=5, sticky=EW)
     
@@ -275,10 +311,9 @@ class SearchFrame(ttk.LabelFrame):
     except:
       print('Grade quantities must be positive integers!')
       return
-    family = self.families[self.listbox.curselection()[0]][0]
-    grade_field = gedcom.get_grade_field(family)
+    grade_field = gedcom.get_grade_field(self.cur_family)
     known_grades = gedcom.get_known_grades(grade_field)
-    libraries_frame.cur_library.add_dispensa(family, grade_field, known_grades, grades)
+    libraries_frame.cur_library.add_dispensa(self.cur_family, grade_field, known_grades, grades)
     batches_frame.set_batches(get_reduced_batches(libraries_frame.cur_library))
     self.add_window.destroy()
 
@@ -336,6 +371,12 @@ class BatchesFrame(ttk.LabelFrame):
     batch = self.batches[batch_name]
     candidates_frame.set_batch(batch)
 
+  def clear(self):
+    self.batches = {}
+    self.batch_names = []
+    self.batch_names_field.set([])
+    self.library_name.set('No library open.')
+
 batches_frame = BatchesFrame(right_frame, text='Batches')
 batches_frame.pack(side='left')
 
@@ -362,7 +403,6 @@ class CandidatesFrame(ttk.LabelFrame):
     self.tokens_label.pack()
 
     self.listbox = Listbox(self, listvariable=self.candidates_field, height=8)
-    self.listbox.bind('<<ListboxSelect>>', self.display_elim_families)
     self.listbox.pack()
 
     self.elim_families_label_field = StringVar(value='Elim. families: ')
@@ -370,6 +410,7 @@ class CandidatesFrame(ttk.LabelFrame):
     self.elim_families_label.pack()
 
     self.elim_listbox = Listbox(self, listvariable=self.elim_candidates_field, height=8)
+    self.elim_listbox.bind('<<ListboxSelect>>', self.display_elim_families)
     self.elim_listbox.pack()
 
   def set_batch(self, batch):
@@ -388,10 +429,18 @@ class CandidatesFrame(ttk.LabelFrame):
     self.elim_candidates_field.set(named_elim_candidates)
 
   def display_elim_families(self, event):
-    cur_candidate_index = self.listbox.curselection()[0]
+    cur_candidate_index = self.elim_listbox.curselection()[0]
     cur_candidate = list(self.elim_candidates.keys())[cur_candidate_index]
     elim_families = self.elim_candidates[cur_candidate]
     self.elim_families_field.set('Elim. families: ' + str(elim_families))
+
+  def clear(self):
+    self.candidates = []
+    self.elim_candidates = {}
+    self.candidates_field.set([])
+    self.elim_candidates_field.set([])
+    self.tokens_field.set('Tokens: ')
+    self.elim_families_label_field.set('Elim. families: ')
 
 candidates_frame = CandidatesFrame(right_frame, text='Candidates')
 candidates_frame.pack(side='right')
