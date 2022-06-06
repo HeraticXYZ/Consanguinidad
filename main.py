@@ -5,12 +5,13 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
 from gedcom_functions import *
+from unidecode import unidecode
 
 """Root Window"""
 
 root = Tk()
 root.title('Consanguinidad Analyser')
-root.geometry('600x400')
+# root.geometry('600x400')
 
 """Menu Bar"""
 
@@ -107,7 +108,7 @@ class LibrariesFrame(ttk.LabelFrame):
     self.libraries_field = StringVar(value=[])
     self.libraries = {} # maps name of library to library object
 
-    self.listbox = Listbox(self, listvariable=self.libraries_field, height=5)
+    self.listbox = Listbox(self, listvariable=self.libraries_field, height=6)
     self.listbox.pack(fill='x')
 
     self.buttons_frame1 = ttk.Frame(self)
@@ -201,6 +202,54 @@ class LibrariesFrame(ttk.LabelFrame):
 libraries_frame = LibrariesFrame(left_frame, text='Libraries')
 libraries_frame.pack(fill='x')
 
+"""Batches LabelFrame"""
+
+class BatchesFrame(ttk.LabelFrame):
+
+  def __init__(self, parent, text):
+    super().__init__(parent, text=text)
+    self.batches = {}
+    self.batch_names = []
+    self.batch_names_field = StringVar(value=[])
+    
+    self.library_name = StringVar(value='No library open.')
+    self.library_label = ttk.Label(self, textvariable=self.library_name)
+    self.library_label.pack()
+
+    self.listbox = Listbox(self, listvariable=self.batch_names_field, height=8)
+    self.listbox.pack(fill='x')
+
+    self.view_button = ttk.Button(self, text='View', command=self.view_batch)
+    self.view_button.pack()
+
+  def set_batches(self, batches):
+    self.batches = batches
+    self.batch_names = list(batches.keys())
+    self.batch_names_field.set(self.batch_names)
+    batch_selection = self.listbox.curselection()
+    if len(batch_selection) != 0:
+      batch_name = self.batch_names[batch_selection[0]]
+      batch = self.batches[batch_name]
+      candidates_frame.set_batch(batch)
+  
+  def view_batch(self):
+    batch_selection = self.listbox.curselection()
+    if len(batch_selection) == 0:
+      print('No batch selected!')
+      return
+    batch_name = self.batch_names[batch_selection[0]]
+    batch = self.batches[batch_name]
+    candidates_frame.set_batch(batch)
+
+  def clear(self):
+    self.batches = {}
+    self.batch_names = []
+    self.batch_names_field.set([])
+    self.library_name.set('No library open.')
+
+batches_frame = BatchesFrame(left_frame, text='Batches')
+batches_frame.pack(fill='x')
+
 """Search LabelFrame"""
 
 class SearchFrame(ttk.LabelFrame):
@@ -229,7 +278,7 @@ class SearchFrame(ttk.LabelFrame):
     self.families = []
     text = self.entry_field.get()
     for family, values in gedcom.FID_dict.items():
-      if (text in family) or (text in values['names']):
+      if (unidecode(text).upper() in unidecode(values['names']).upper()) or (text in family):
         self.families.append((family, values['names']))
     self.results_field.set(self.families)
 
@@ -332,54 +381,6 @@ class SearchFrame(ttk.LabelFrame):
 search_frame = SearchFrame(left_frame, text='Search for family to add to library')
 search_frame.pack(fill='x', pady=5)
 
-"""Batches LabelFrame"""
-
-class BatchesFrame(ttk.LabelFrame):
-
-  def __init__(self, parent, text):
-    super().__init__(parent, text=text)
-    self.batches = {}
-    self.batch_names = []
-    self.batch_names_field = StringVar(value=[])
-    
-    self.library_name = StringVar(value='No library open.')
-    self.library_label = ttk.Label(self, textvariable=self.library_name)
-    self.library_label.pack()
-
-    self.listbox = Listbox(self, listvariable=self.batch_names_field, height=18)
-    self.listbox.pack()
-
-    self.view_button = ttk.Button(self, text='View', command=self.view_batch)
-    self.view_button.pack()
-
-  def set_batches(self, batches):
-    self.batches = batches
-    self.batch_names = list(batches.keys())
-    self.batch_names_field.set(self.batch_names)
-    batch_selection = self.listbox.curselection()
-    if len(batch_selection) != 0:
-      batch_name = self.batch_names[batch_selection[0]]
-      batch = self.batches[batch_name]
-      candidates_frame.set_batch(batch)
-  
-  def view_batch(self):
-    batch_selection = self.listbox.curselection()
-    if len(batch_selection) == 0:
-      print('No batch selected!')
-      return
-    batch_name = self.batch_names[batch_selection[0]]
-    batch = self.batches[batch_name]
-    candidates_frame.set_batch(batch)
-
-  def clear(self):
-    self.batches = {}
-    self.batch_names = []
-    self.batch_names_field.set([])
-    self.library_name.set('No library open.')
-
-batches_frame = BatchesFrame(right_frame, text='Batches')
-batches_frame.pack(side='left')
-
 """Candidates LabelFrame"""
 
 def name_candidate(candidate):
@@ -389,27 +390,36 @@ def name_candidate(candidate):
   female_side_name = info['GIVN'] + ' ' + info['SURN']
   return ((male_side_name, candidate[0][1]), (female_side_name, candidate[1][1]))
 
-class CandidatesFrame(ttk.LabelFrame):
+class CandidatesFrame(ttk.Frame):
 
-  def __init__(self, parent, text):
-    super().__init__(parent, text=text)
+  def __init__(self, parent):
+    super().__init__(parent)
+
+    candidates_labelframe = ttk.LabelFrame(self, text='Candidates')
+    candidates_labelframe.pack(side='left')
+    candidates_labelframe.configure(width=50)
+    
     self.candidates = []
-    self.elim_candidates = {}
     self.candidates_field = StringVar(value=[])
-    self.elim_candidates_field = StringVar(value=[])
 
     self.tokens_field = StringVar(value='Tokens: ')
-    self.tokens_label = ttk.Label(self, textvariable=self.tokens_field)
+    self.tokens_label = ttk.Label(candidates_labelframe, textvariable=self.tokens_field)
     self.tokens_label.pack()
 
-    self.listbox = Listbox(self, listvariable=self.candidates_field, height=8)
+    self.listbox = Listbox(candidates_labelframe, listvariable=self.candidates_field, height=32)
     self.listbox.pack()
 
+    elim_candidates_labelframe = ttk.LabelFrame(self, text='Elimination Candidates')
+    elim_candidates_labelframe.pack(side='right')
+
+    self.elim_candidates = {}
+    self.elim_candidates_field = StringVar(value=[])
+
     self.elim_families_label_field = StringVar(value='Elim. families: ')
-    self.elim_families_label = ttk.Label(self, textvariable=self.elim_families_label_field)
+    self.elim_families_label = ttk.Label(elim_candidates_labelframe, textvariable=self.elim_families_label_field)
     self.elim_families_label.pack()
 
-    self.elim_listbox = Listbox(self, listvariable=self.elim_candidates_field, height=8)
+    self.elim_listbox = Listbox(elim_candidates_labelframe, listvariable=self.elim_candidates_field, height=32)
     self.elim_listbox.bind('<<ListboxSelect>>', self.display_elim_families)
     self.elim_listbox.pack()
 
@@ -442,8 +452,8 @@ class CandidatesFrame(ttk.LabelFrame):
     self.tokens_field.set('Tokens: ')
     self.elim_families_label_field.set('Elim. families: ')
 
-candidates_frame = CandidatesFrame(right_frame, text='Candidates')
-candidates_frame.pack(side='right')
+candidates_frame = CandidatesFrame(right_frame)
+candidates_frame.pack(fill='x')
 
 """Main Loop"""
 
