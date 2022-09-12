@@ -9,7 +9,7 @@ Without the dispensation letters detailing the names and descendants of a couple
 
 ![segundo grado fuente snip](https://user-images.githubusercontent.com/54190606/162840885-5774825b-ad76-4fe3-8978-327ea3b96621.jpg)
 
-In this example, a couple was married in 1869 in the town of Yabucoa, Puerto Rico, and received a dispensation of second grade of consanguinity. Their parents are given by the marriage document: Roberto Ramos and Facunda Delgado were Serapio's parents, and José Dolores Ramos and Ramona Aponte were Juliana's parents.
+In this example, a couple was married in 1869 in the town of Yabucoa, Puerto Rico, and received a dispensation of second grade of consanguinity. Serapio and Juliana's parents are given in the marriage document: Roberto Ramos and Facunda Delgado, and José Dolores Ramos and Ramona Aponte..
 
 The degree (number) of consanguinity reflects the number of generations that have elapsed since the couple's shared ancestor(s). In this case, second grade means that Serapio and Juliana are both two generations below their shared ancestor(s). That is to say, Serapio and Juliana share a set of grandparents.
 
