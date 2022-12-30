@@ -1,6 +1,8 @@
 # Consanguinidad
 Consanguinity dispensation data analysis.
 
+Currently doesn't support elimination families. I plan to return in the future to refactorize and clean up code. For readers, understand this basic principle: every marriage asserts a set of possibilities, and negates a set of possibilities. These negation sets are used to reduce the assertion sets, until useful conclusions can be reached. If 16 possibilities are asserted from one marriage, and 15 of those possibilities are proven to be wrong from other marriages, then we have reached a final conclusion, that is, the remaining possibility is true and the dispensation is solved. 
+
 In the past, when closely related individuals sought marriage in a Catholic church, a dispensation (exemption) letter would be written to explain the ancestors they shared and give a descending genealogy for each of them, and to pardon them for the Catholic marital impediment of marriage within the fourth degree (3rd cousins or closer). These letters prove invaluable as genealogical resources. However, these letters are very often lost. The information they contain would be summarized in Catholic marriage records as numerical relations of consanguinity (e.g. "second with third grade", which means first cousin once removed).
 
 Without the dispensation letters detailing the names and descendants of a couple's shared ancestors, we are left with numerical descriptions of their genealogical relationship. These descriptions (hereon referred to as "grades" or "degrees") are still quite valuable for the reconstruction of family pedigrees. Let us consider a simple example:
