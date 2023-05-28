@@ -70,9 +70,9 @@ class GEDCOM:
             husband = None
             wife = None
         else:
-            fam = self.FID_dict[famc]
-            husband = fam['HUSB']
-            wife = fam['WIFE']
+            family = self.FID_dict[famc]
+            husband = family['HUSB']
+            wife = family['WIFE']
         return husband, wife
 
     def get_ancestors(self, PID, gens=4):
@@ -131,12 +131,12 @@ class GEDCOM:
                             known_grades.append((grade, cand))
                         else:
                             # Siblings through only one parent do not share their FAMC
-                            male_side_fam = self.FID_dict[male_side_famc]
-                            male_side_father = male_side_fam['HUSB']
-                            male_side_mother = male_side_fam['WIFE']
-                            female_side_fam = self.FID_dict[female_side_famc]
-                            female_side_father = female_side_fam['HUSB']
-                            female_side_mother = female_side_fam['WIFE']
+                            male_side_family = self.FID_dict[male_side_famc]
+                            male_side_father = male_side_family['HUSB']
+                            male_side_mother = male_side_family['WIFE']
+                            female_side_family = self.FID_dict[female_side_famc]
+                            female_side_father = female_side_family['HUSB']
+                            female_side_mother = female_side_family['WIFE']
                             if (male_side_father and female_side_father):
                                 if male_side_father == female_side_father:
                                     known_grades.append((grade, cand))
@@ -179,7 +179,26 @@ class DispensationLibrary:
 
     def _reduce(self):
         # remove elimination candidates from batch candidates
-        pass
+        self.reduced_batches = {}
+        reduction_batches = {}
+        elim_cands = {}
+        for elim_family in self.elim_batches:
+            for elim_cand in self.elim_batches[elim_family]:
+                elim_cands[elim_cand] = elim_family
+        for family in self.batches:
+            reduction_batches = {}
+            new_batches = []
+            for candidates, count in self.batches[family]:
+                new_candidates = []
+                for cand in candidates:
+                    if cand not in elim_cands:
+                        new_candidates.append(cand)
+                    else:
+                        reduction_batches[family] = (cand, elim_cands[cand])
+                new_batch = (new_candidates, count)
+                new_batches.append(new_batch)
+            self.reduced_batches[family] = new_batches
+                    
 
     def add_dispensa(self, family, grades):
         # grades are in marital format, not exact format
