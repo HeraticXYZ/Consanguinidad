@@ -113,6 +113,18 @@ class GEDCOM:
         }
         return grade_field
 
+    def pretty_print_candidates(self, candidates):
+        new_cands = []
+        for cand in candidates:
+            name1 = self.PID_dict[cand[0][0]]['NAME']
+            name2 = self.PID_dict[cand[1][0]]['NAME']
+            trail1 = cand[0][1]
+            trail2 = cand[1][1]
+            new_cand = ((name1, trail1), (name2, trail2))
+            new_cands.append(new_cand)
+            print(new_cand)
+        return
+
     def get_known_grades(self, grade_field):
         # Returns siblinghood relationships already established in the tree 
         if isinstance(grade_field, str):
@@ -157,16 +169,34 @@ class GEDCOM:
         print(new_grades)
         return
 
-    def pretty_print_candidates(self, candidates):
-        new_cands = []
-        for cand in candidates:
-            name1 = self.PID_dict[cand[0][0]]['NAME']
-            name2 = self.PID_dict[cand[1][0]]['NAME']
-            trail1 = cand[0][1]
-            trail2 = cand[1][1]
-            new_cand = ((name1, trail1), (name2, trail2))
-            new_cands.append(new_cand)
-            print(new_cand)
+    def get_descendants(self, FAMS, gens=4):
+        descendants = {0: [FAMS]}
+        for gen in range(gens):
+            descendants[gen+1] = []
+            for FID in descendants[gen]:
+                for child in self.FID_dict[FID]['CHIL']:
+                    descendants[gen+1] += self.PID_dict[child]['FAMS']
+        return descendants
+
+    def get_relevant_descendants(self, FAMS, gens=4):
+        descendants = self.get_descendants(FAMS, gens)
+        relevant_descendants = {}
+        for gen in descendants:
+            relevant_descendants[gen] = [
+                FID for FID in descendants[gen] if self.FID_dict[FID]['MARR'] is not None
+            ]
+        return relevant_descendants
+
+    def pretty_print_descendants(self, descendants):
+        new_descendants = {}
+        for gen in descendants:
+            print('Generation', gen)
+            print('------------')
+            for FID in descendants[gen]:
+                name = self.FID_dict[FID]['NAME']
+                new_descendants[FID] = name
+                print(name)
+            print()
         return
 
 class DispensationLibrary:
@@ -198,7 +228,7 @@ class DispensationLibrary:
                 new_batch = (new_candidates, count)
                 new_batches.append(new_batch)
             self.reduced_batches[family] = new_batches
-                    
+        return
 
     def add_dispensa(self, family, grades):
         # grades are in marital format, not exact format
@@ -207,6 +237,7 @@ class DispensationLibrary:
         known_grades = self.gedcom.get_known_grades(grade_field)
         short_grades = grades.copy()
         short_grade_field = grade_field.copy()
+        # remove already known grades from marital data
         for known_grade, candidate in known_grades:
             adj_known_grade = (known_grade[1], known_grade[0])
             if known_grade in grades:
@@ -235,6 +266,11 @@ class DispensationLibrary:
         self.batches[family] = batches
         self.elim_batches[family] = elim_batch
         self._reduce()
+        print('Reduced batches: ')
+        self.pretty_print_reduced_batches()
+        print('Elimination batches: ')
+        self.pretty_print_elim_batches()
+        return
 
     def remove_dispensa(self, family):
         if family in self.batches:
@@ -243,3 +279,18 @@ class DispensationLibrary:
             self._reduce()
         else:
             print(family, 'not in library.')
+        return
+
+    def pretty_print_reduced_batches(self):
+        for family in self.reduced_batches:
+            for candidates, count in self.reduced_batches[family]:
+                self.gedcom.pretty_print_candidates(candidates)
+                print(count)
+                print('----------------')
+        return
+
+    def pretty_print_elim_batches(self):
+        for family in self.elim_batches:
+            elim_cands = self.elim_batches[family]
+            self.gedcom.pretty_print_candidates(elim_cands)
+            print('----------------')
